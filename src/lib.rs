@@ -2,7 +2,7 @@ extern crate enum_iterator;
 use pyo3::prelude::*;
 
 mod dtype;
-mod convert;
+mod parser;
 mod count;
 // mod pnps;
 mod python;
@@ -16,9 +16,9 @@ fn dnds(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_class::<dtype::Codon>()?;
 
     // Conversion functions
-    m.add_function(wrap_pyfunction!(python::convert::str_to_amino_acids, m)?)?;
-    m.add_function(wrap_pyfunction!(python::convert::str_to_bases, m)?)?;
-    m.add_function(wrap_pyfunction!(python::convert::str_to_codons, m)?)?;
+    m.add_function(wrap_pyfunction!(python::convert::aln_str_to_amino_acids, m)?)?;
+    m.add_function(wrap_pyfunction!(python::convert::aln_str_to_bases, m)?)?;
+    m.add_function(wrap_pyfunction!(python::convert::aln_str_to_codons, m)?)?;
 
     // Counting functions
     m.add_function(wrap_pyfunction!(python::count::count_sites, m)?)?;

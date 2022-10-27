@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-use crate::dtype::{Base, AminoAcid, Codon};
+use crate::dtype::{Base, AminoAcid, Codon, SequenceItem};
 
 
 pub mod dtype {
@@ -17,12 +17,16 @@ pub mod dtype {
             let chars = s.chars().collect::<Vec<char>>();
             match chars.len() {
                 1 => match Self::from_one_char_(&chars[0]) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(PyValueError::new_err(e))
+                    SequenceItem::Some(v) => Ok(v),
+                    SequenceItem::Gap => Err(PyValueError::new_err("Gap character")),
+                    SequenceItem::Unknown => Err(PyValueError::new_err("Unknown character")),
+                    SequenceItem::Err(e) => Err(PyValueError::new_err(e)),
                 },
                 3 => match Self::from_three_str_(s) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(PyValueError::new_err(e))
+                    SequenceItem::Some(v) => Ok(v),
+                    SequenceItem::Gap => Err(PyValueError::new_err("Gap character")),
+                    SequenceItem::Unknown => Err(PyValueError::new_err("Unknown character")),
+                    SequenceItem::Err(e) => Err(PyValueError::new_err(e)),
                 },
                 _ => Err(PyValueError::new_err(())),
             }
@@ -56,8 +60,10 @@ pub mod dtype {
             let chars = s.chars().collect::<Vec<char>>();
             match chars.len() {
                 1 => match Self::from_char_(&chars[0]) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(PyValueError::new_err(e))
+                    SequenceItem::Some(v) => Ok(v),
+                    SequenceItem::Gap => Err(PyValueError::new_err("Gap character")),
+                    SequenceItem::Unknown => Err(PyValueError::new_err("Unknown character")),
+                    SequenceItem::Err(e) => Err(PyValueError::new_err(e)),
                 },
                 _ => Err(PyValueError::new_err(())),
             }
@@ -83,8 +89,10 @@ pub mod dtype {
             let chars = s.chars().collect::<Vec<char>>();
             match chars.len() {
                 3 => match Self::from_str_(s) {
-                    Ok(v) => Ok(v),
-                    Err(e) => Err(PyValueError::new_err(e))
+                    SequenceItem::Some(v) => Ok(v),
+                    SequenceItem::Gap => Err(PyValueError::new_err("Gap character")),
+                    SequenceItem::Unknown => Err(PyValueError::new_err("Unknown character")),
+                    SequenceItem::Err(e) => Err(PyValueError::new_err(e)),
                 },
                 _ => Err(PyValueError::new_err(())),
             }
@@ -122,32 +130,53 @@ pub mod dtype {
 
 pub mod convert {
     use super::*;
-    use crate::convert::{
-        str_to_bases as str_to_bases_,
-        str_to_amino_acids as str_to_amino_acids_,
-        str_to_codons as str_to_codons_,
+    use crate::parser::{
+        aln_str_to_bases as aln_str_to_bases_,
+        aln_str_to_amino_acids as aln_str_to_amino_acids_,
+        aln_str_to_codons as aln_str_to_codons_,
     };
 
     #[pyfunction]
-    pub fn str_to_bases(s: &str) -> PyResult<Vec<Base>> {
-        match str_to_bases_(s) {
-            Ok(v) => Ok(v),
+    pub fn aln_str_to_bases(s: &str) -> PyResult<Vec<Option<Base>>> {
+        match aln_str_to_bases_(s) {
+            Ok(v) => Ok({
+                v.into_iter()
+                    .map(|i| match i {
+                        SequenceItem::Some(b) => Some(b),
+                        _ => None
+                    })
+                    .collect()
+            }),
             Err(e) => Err(PyValueError::new_err(e)),
         }
     }
     
     #[pyfunction]
-    pub fn str_to_amino_acids(s: &str) -> PyResult<Vec<AminoAcid>> {
-        match str_to_amino_acids_(s) {
-            Ok(v) => Ok(v),
+    pub fn aln_str_to_amino_acids(s: &str) -> PyResult<Vec<Option<AminoAcid>>> {
+        match aln_str_to_amino_acids_(s) {
+            Ok(v) => Ok({
+                v.into_iter()
+                    .map(|i| match i {
+                        SequenceItem::Some(b) => Some(b),
+                        _ => None
+                    })
+                    .collect()
+            }),
             Err(e) => Err(PyValueError::new_err(e)),
         }
     }
     
     #[pyfunction]
-    pub fn str_to_codons(s: &str) -> PyResult<Vec<Codon>> {
-        match str_to_codons_(s) {
-            Ok(v) => Ok(v),
+    pub fn aln_str_to_codons(s: &str) -> PyResult<Vec<Option<Codon>>> {
+        match aln_str_to_codons_(s) {
+            Ok(v) => Ok({
+                v.into_iter()
+                    .map(|i| match i {
+                        SequenceItem::Some(b) => Some(b),
+                        _ => None
+                    })
+                    .collect()
+            }),
             Err(e) => Err(PyValueError::new_err(e)),
         }
     }
