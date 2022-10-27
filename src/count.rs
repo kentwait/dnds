@@ -1,0 +1,171 @@
+use crate::dtype::Codon;
+
+fn count_sites_single_codon(codon: &Codon) -> (f64, f64) {
+    let mut syn_site_count: f64 = 0.;
+    let mut nonsyn_site_count: f64 = 0.;
+    codon.one_hit_mutants_().iter()
+        .for_each(|other| {
+            if codon.is_synonymous_change_(other) {
+                syn_site_count += 1.;
+            } else {
+                nonsyn_site_count += 1.;
+            }
+
+        });
+    // Sum counts and compute synonymous and non-synonymous site counts
+    let sum_count: f64 = syn_site_count + nonsyn_site_count;
+    let s: f64 = 3. * (syn_site_count / sum_count);
+    let n: f64 = 3. * (nonsyn_site_count / sum_count);
+    (s, n)
+}
+
+pub fn count_sites(codon1: &Codon, codon2: &Codon) -> Result<(f64, f64), ()> {
+    if codon1.is_stop_codon_() || codon2.is_stop_codon_() {
+        return Err(())
+    }
+    let (s_1, n_1) = count_sites_single_codon(codon1);
+    let (s_2, n_2) = count_sites_single_codon(codon2);
+    // Average ove the pair of codons
+    let average_s = (s_1 + s_2) / 2.;
+    let average_n = (n_1 + n_2) / 2.;
+    Ok((average_s, average_n))
+}
+
+pub fn count_differences(codon1: &Codon, codon2: &Codon) -> Result<(f64, f64), ()> {
+    if codon1 == codon2 { return Ok((0., 0.)) }
+    let mut syn_diff = 0;
+    let mut nonsyn_diff = 0;
+    let mut path_count = 0;
+    codon1.generate_mutation_pathways_(codon2).into_iter()
+        .for_each(|path| {
+            path.iter().zip(path.iter().skip(1))
+                .for_each(|(codon1, codon2)| {
+                    if codon1.is_synonymous_change_(codon2) {
+                        syn_diff += 1;
+                    } else {
+                        nonsyn_diff += 1;
+                    }
+                });
+            path_count += 1;
+        });
+    if path_count == 0 { 
+        Err(())
+    }
+    else {
+        let average_syn_diff = (syn_diff as f64) / (path_count as f64);
+        let average_nonsyn_diff = (nonsyn_diff as f64) / (path_count as f64);
+        Ok((average_syn_diff, average_nonsyn_diff))
+    }
+    
+}
+
+
+#[cfg(test)]
+mod count_sites_tests {
+    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
+    #[test]
+    fn count_sites_single_codon_phe() {
+        let (s, n) = count_sites_single_codon(&Codon::TTT);  // Phe
+        assert_approx_eq!(s, 0.3333334);
+        assert_approx_eq!(n, 2.6666667);
+        assert_approx_eq!(s+n, 3.0);
+    }
+
+    #[test]
+    fn count_s_n_sites_single_codon_no_syn_change() {
+        let (s, n) = count_sites_single_codon(&Codon::ATG);  // Met
+        assert_approx_eq!(s, 0.);
+        assert_approx_eq!(n, 3.);
+        assert_approx_eq!(s+n, 3.0);
+    }
+
+    #[test]
+    fn count_s_n_sites_single_codon_fourfold() {
+        let (s, n) = count_sites_single_codon(&Codon::GGG);  // Leu
+        assert_approx_eq!(s, 1.0);
+        assert_approx_eq!(n, 2.0);
+        assert_approx_eq!(s+n, 3.0);
+    }
+
+    #[test]
+    fn count_s_n_sites_single_codon_sixfold() {
+        let (s, n) = count_sites_single_codon(&Codon::CTA);  // Gly
+        assert_approx_eq!(s, 1.3333334);
+        assert_approx_eq!(n, 1.6666667);
+        assert_approx_eq!(s+n, 3.0);
+    }
+
+    #[test]
+    fn count_sites_single_codon_leu() {
+        let (s, n) = count_sites_single_codon(&Codon::TTG);  // Leu
+        assert_approx_eq!(s, 0.6666667);
+        assert_approx_eq!(n, 2.3333334);
+        assert_approx_eq!(s+n, 3.0);
+    }
+
+    #[test]
+    fn count_sites_same() {
+        if let Ok((s, n)) = count_sites(&Codon::ATG, &Codon::ATG) { // Met
+            assert_approx_eq!(s, 0.);
+            assert_approx_eq!(n, 3.);
+            assert_approx_eq!(s+n, 3.0);
+        }
+    }
+
+    #[test]
+    fn count_sites_phe_leu() {
+        if let Ok((s, n)) = count_sites(&Codon::TTT, &Codon::TTG) {  // Phe, Leu
+            assert_approx_eq!(s, 0.5);
+            assert_approx_eq!(n, 2.5);
+            assert_approx_eq!(s+n, 3.0);
+        }
+    }
+}
+
+#[cfg(test)]
+mod count_differences_tests {
+    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
+    #[test]
+    fn count_differences_same() {
+        let (codon1, codon2) = (Codon::AAA, Codon::AAA);
+        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
+            assert_approx_eq!(s, 0.);
+            assert_approx_eq!(n, 0.);
+            assert_approx_eq!(s+n, 0.);
+        }
+    }
+
+    #[test]
+    fn count_differences_one_path() {
+        let (codon1, codon2) = (Codon::CCT, Codon::CAT);
+        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
+            assert_approx_eq!(s, 0.);
+            assert_approx_eq!(n, 1.);
+            assert_approx_eq!(s+n, 1.);
+        }
+    }
+
+    #[test]
+    fn count_differences_two_paths() {
+        let (codon1, codon2) = (Codon::CCT, Codon::CAG);
+        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
+            assert_approx_eq!(s, 0.5);
+            assert_approx_eq!(n, 1.5);
+            assert_approx_eq!(s+n, 2.);
+        }
+    }
+
+    #[test]
+    fn count_differences_six_paths() {
+        let (codon1, codon2) = (Codon::TTT, Codon::GGG);
+        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
+            assert_approx_eq!(s, 0.5);
+            assert_approx_eq!(n, 2.5);
+            assert_approx_eq!(s+n, 3.);
+        }
+    }
+}
