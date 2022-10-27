@@ -1,4 +1,6 @@
-use crate::dtype::Codon;
+use crate::dtype::{Codon, PwAlnItem, WrappedSequenceItem};
+use crate::parser::keep_valid_sites;
+
 
 fn count_sites_single_codon(codon: &Codon) -> (f64, f64) {
     let mut syn_site_count: f64 = 0.;
@@ -36,7 +38,7 @@ pub fn count_differences(codon1: &Codon, codon2: &Codon) -> Result<(f64, f64), (
     let mut syn_diff = 0;
     let mut nonsyn_diff = 0;
     let mut path_count = 0;
-    codon1.generate_mutation_pathways_(codon2).into_iter()
+    codon1.list_mutation_pathways_(codon2).into_iter()
         .for_each(|path| {
             path.iter().zip(path.iter().skip(1))
                 .for_each(|(codon1, codon2)| {
@@ -48,15 +50,37 @@ pub fn count_differences(codon1: &Codon, codon2: &Codon) -> Result<(f64, f64), (
                 });
             path_count += 1;
         });
-    if path_count == 0 { 
-        Err(())
+    let average_syn_diff = (syn_diff as f64) / (path_count as f64);
+    let average_nonsyn_diff = (nonsyn_diff as f64) / (path_count as f64);
+    Ok((average_syn_diff, average_nonsyn_diff))
+}
+
+pub fn count_total_sites<E>(vec: Vec<PwAlnItem<Codon, E>>) -> Result<(f64, f64), ()> {
+    // Remove gaps, unknowns, errors
+    let mut total_s = 0.;
+    let mut total_n = 0.;
+    for pair in keep_valid_sites(vec).iter() {
+        let codon1 = pair.0.unwrap()?;
+        let codon2 = pair.1.unwrap()?;
+        let (s, n) = count_sites(&codon1, &codon2)?;
+        total_s += s;
+        total_n += n;
     }
-    else {
-        let average_syn_diff = (syn_diff as f64) / (path_count as f64);
-        let average_nonsyn_diff = (nonsyn_diff as f64) / (path_count as f64);
-        Ok((average_syn_diff, average_nonsyn_diff))
+    Ok((total_s, total_n))
+}
+
+pub fn count_total_differences<E>(vec: Vec<PwAlnItem<Codon, E>>) -> Result<(f64, f64), ()> {
+    // Remove gaps, unknowns, errors
+    let mut total_sd = 0.;
+    let mut total_nd = 0.;
+    for pair in keep_valid_sites(vec).iter() {
+        let codon1 = pair.0.unwrap().unwrap();
+        let codon2 = pair.1.unwrap().unwrap();
+        let (sd, nd) = count_differences(&codon1, &codon2)?;
+        total_sd += sd;
+        total_nd += nd;
     }
-    
+    Ok((total_sd, total_nd))
 }
 
 
