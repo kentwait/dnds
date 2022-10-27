@@ -2,6 +2,88 @@ use pyo3::prelude::*;
 use enum_iterator::{all, Sequence};
 
 
+#[derive(Debug, Copy, Clone, PartialEq, )]
+pub enum SequenceItem<I, E> {
+    Some(I),
+    Gap,
+    Unknown,
+    Err(E),
+}
+
+pub trait WrappedSequenceItem {
+    type Output;
+
+    fn unwrap(self) -> Result<Self::Output, ()>;
+    fn to_str(&self) -> String;
+}
+
+impl<E> WrappedSequenceItem for SequenceItem<Base, E> {
+    type Output = Base;
+
+    fn unwrap(self) -> Result<Self::Output, ()> {
+        match self {
+            Self::Some(i) => Ok(i),
+            Self::Gap => Err(()), 
+            Self::Unknown => Err(()), 
+            Self::Err(e) => Err(()), 
+        }
+    }
+
+    fn to_str(&self) -> String {
+        match self {
+            Self::Some(i) => i.to_char_().to_string(),
+            Self::Gap => "-".to_string(),
+            Self::Unknown => "N".to_string(),
+            Self::Err(_) => "!".to_string(),
+        }
+    }
+}
+
+impl<E> WrappedSequenceItem for SequenceItem<AminoAcid, E> {
+    type Output = AminoAcid;
+
+    fn unwrap(self) -> Result<Self::Output, ()> {
+        match self {
+            Self::Some(i) => Ok(i),
+            Self::Gap => Err(()), 
+            Self::Unknown => Err(()), 
+            Self::Err(e) => Err(()), 
+        }
+    }
+
+    fn to_str(&self) -> String {
+        match self {
+            Self::Some(i) => i.to_one_char_().to_string(),
+            Self::Gap => "-".to_string(),
+            Self::Unknown => "X".to_string(),
+            Self::Err(_) => "!".to_string(),
+        }
+    }
+}
+
+impl<E> WrappedSequenceItem for SequenceItem<Codon, E> {
+    type Output = Codon;
+
+    fn unwrap(self) -> Result<Self::Output, ()> {
+        match self {
+            Self::Some(i) => Ok(i),
+            Self::Gap => Err(()), 
+            Self::Unknown => Err(()), 
+            Self::Err(e) => Err(()), 
+        }
+    }
+
+    fn to_str(&self) -> String {
+        match self {
+            Self::Some(i) => i.to_str_().to_string(),
+            Self::Gap => "---".to_string(),
+            Self::Unknown => "NNN".to_string(),
+            Self::Err(_) => "!!!".to_string(),
+        }
+    }
+}
+
+
 #[derive(Debug, Copy, Clone, PartialEq, Sequence)]
 #[pyclass]
 pub enum AminoAcid {
@@ -27,6 +109,7 @@ pub enum AminoAcid {
     Trp,
     Tyr,
     Val,
+    Stop,  // Stop
 }
 
 // Converters and translators
@@ -56,6 +139,7 @@ impl AminoAcid {
             Self::Trp => "Trp",
             Self::Tyr => "Tyr",
             Self::Val => "Val",
+            Self::Stop => "Ter",
         }
     }    
 
@@ -83,63 +167,70 @@ impl AminoAcid {
             Self::Trp => &'W',
             Self::Tyr => &'Y',
             Self::Val => &'V',
+            Self::Stop => &'*',
         }
     }
     
     // From string/char to enum
-    pub fn from_three_str_(aa: &str) -> Result<Self, ()> {
+    pub fn from_three_str_(aa: &str) -> SequenceItem<Self, ()> {
         match aa.to_ascii_lowercase().as_str() {
-            "ala" => Ok(Self::Ala),
-            "arg" => Ok(Self::Arg),
-            "asn" => Ok(Self::Asn),
-            "asp" => Ok(Self::Asp),
-            // "asx" => Ok(Self::Asx),
-            "cys" => Ok(Self::Cys),
-            "glu" => Ok(Self::Glu),
-            "gln" => Ok(Self::Gln),
-            // "glx" => Ok(Self::Glx),
-            "gly" => Ok(Self::Gly),
-            "his" => Ok(Self::His),
-            "ile" => Ok(Self::Ile),
-            "leu" => Ok(Self::Leu),
-            "lys" => Ok(Self::Lys),
-            "met" => Ok(Self::Met),
-            "phe" => Ok(Self::Phe),
-            "pro" => Ok(Self::Pro),
-            "ser" => Ok(Self::Ser),
-            "thr" => Ok(Self::Thr),
-            "trp" => Ok(Self::Trp),
-            "tyr" => Ok(Self::Tyr),
-            "val" => Ok(Self::Val),
-            _ => Err(()),  // TODO: Make an error type
+            "ala" => SequenceItem::Some(Self::Ala),
+            "arg" => SequenceItem::Some(Self::Arg),
+            "asn" => SequenceItem::Some(Self::Asn),
+            "asp" => SequenceItem::Some(Self::Asp),
+            // "asx" => SequenceItem::Some(Self::Asx),
+            "cys" => SequenceItem::Some(Self::Cys),
+            "glu" => SequenceItem::Some(Self::Glu),
+            "gln" => SequenceItem::Some(Self::Gln),
+            // "glx" => SequenceItem::Some(Self::Glx),
+            "gly" => SequenceItem::Some(Self::Gly),
+            "his" => SequenceItem::Some(Self::His),
+            "ile" => SequenceItem::Some(Self::Ile),
+            "leu" => SequenceItem::Some(Self::Leu),
+            "lys" => SequenceItem::Some(Self::Lys),
+            "met" => SequenceItem::Some(Self::Met),
+            "phe" => SequenceItem::Some(Self::Phe),
+            "pro" => SequenceItem::Some(Self::Pro),
+            "ser" => SequenceItem::Some(Self::Ser),
+            "thr" => SequenceItem::Some(Self::Thr),
+            "trp" => SequenceItem::Some(Self::Trp),
+            "tyr" => SequenceItem::Some(Self::Tyr),
+            "val" => SequenceItem::Some(Self::Val),
+            "ter" => SequenceItem::Some(Self::Stop),
+            "unk" => SequenceItem::Unknown,
+            "gap" => SequenceItem::Gap,
+            _ => SequenceItem::Err(()),  // TODO: Make an error type
         }
     }
 
-    pub fn from_one_char_(aa: &char) -> Result<Self, ()> {
+    pub fn from_one_char_(aa: &char) -> SequenceItem<Self, ()> {
         match aa.to_ascii_uppercase() {
-            'A' => Ok(Self::Ala),
-            'R' => Ok(Self::Arg),
-            'N' => Ok(Self::Asn),
-            'D' => Ok(Self::Asp),
-            // 'B' => Ok(Self::Asx),
-            'C' => Ok(Self::Cys),
-            'E' => Ok(Self::Glu),
-            'Q' => Ok(Self::Gln),
-            // 'Z' => Ok(Self::Glx),
-            'G' => Ok(Self::Gly),
-            'H' => Ok(Self::His),
-            'I' => Ok(Self::Ile),
-            'L' => Ok(Self::Leu),
-            'K' => Ok(Self::Lys),
-            'M' => Ok(Self::Met),
-            'F' => Ok(Self::Phe),
-            'P' => Ok(Self::Pro),
-            'S' => Ok(Self::Ser),
-            'T' => Ok(Self::Thr),
-            'W' => Ok(Self::Trp),
-            'Y' => Ok(Self::Tyr),
-            'V' => Ok(Self::Val),
-            _ => Err(()),  // TODO: Make an error type
+            'A' => SequenceItem::Some(Self::Ala),
+            'R' => SequenceItem::Some(Self::Arg),
+            'N' => SequenceItem::Some(Self::Asn),
+            'D' => SequenceItem::Some(Self::Asp),
+            // 'B' => SequenceItem::Some(Self::Asx),
+            'C' => SequenceItem::Some(Self::Cys),
+            'E' => SequenceItem::Some(Self::Glu),
+            'Q' => SequenceItem::Some(Self::Gln),
+            // 'Z' => SequenceItem::Some(Self::Glx),
+            'G' => SequenceItem::Some(Self::Gly),
+            'H' => SequenceItem::Some(Self::His),
+            'I' => SequenceItem::Some(Self::Ile),
+            'L' => SequenceItem::Some(Self::Leu),
+            'K' => SequenceItem::Some(Self::Lys),
+            'M' => SequenceItem::Some(Self::Met),
+            'F' => SequenceItem::Some(Self::Phe),
+            'P' => SequenceItem::Some(Self::Pro),
+            'S' => SequenceItem::Some(Self::Ser),
+            'T' => SequenceItem::Some(Self::Thr),
+            'W' => SequenceItem::Some(Self::Trp),
+            'Y' => SequenceItem::Some(Self::Tyr),
+            'V' => SequenceItem::Some(Self::Val),
+            '*' => SequenceItem::Some(Self::Stop),
+            'X' => SequenceItem::Unknown,
+            '-' => SequenceItem::Gap,
+            _ => SequenceItem::Err(()),  // TODO: Make an error type
         }
     }
 
@@ -166,6 +257,7 @@ impl AminoAcid {
             Self::Trp => vec![Codon::TGG],
             Self::Tyr => vec![Codon::TAC, Codon::TAT],
             Self::Val => vec![Codon::GTA, Codon::GTC, Codon::GTG, Codon::GTT],
+            Self::Stop => vec![Codon::TAG, Codon::TGA, Codon::TAA]
         }
     }
 }
@@ -190,13 +282,15 @@ impl Base {
         }
     }
 
-    pub fn from_char_(c: &char) -> Result<Self, ()> {
+    pub fn from_char_(c: &char) -> SequenceItem<Self, ()> {
         match c.to_ascii_uppercase() {
-            'A' => Ok(Self::A),
-            'C' => Ok(Self::C),
-            'G' => Ok(Self::G),
-            'T' => Ok(Self::T),
-            _ => Err(()),  // TODO: Make an error type
+            'A' => SequenceItem::Some(Self::A),
+            'C' => SequenceItem::Some(Self::C),
+            'G' => SequenceItem::Some(Self::G),
+            'T' => SequenceItem::Some(Self::T),
+            'N' => SequenceItem::Unknown,
+            '-' => SequenceItem::Gap,
+            _ => SequenceItem::Err(()),  // TODO: Make an error type
         }
     }
 }
@@ -410,74 +504,76 @@ impl Codon {
         }
     }
 
-    pub fn from_str_(codon: &str) -> Result<Self, ()> {
+    pub fn from_str_(codon: &str) -> SequenceItem<Self, ()> {
         // TODO: Change U to T
         match codon {
-            "AAA" => Ok(Self::AAA),
-            "AAC" => Ok(Self::AAC),
-            "AAG" => Ok(Self::AAG),
-            "AAT" => Ok(Self::AAT),
-            "ACA" => Ok(Self::ACA),
-            "ACC" => Ok(Self::ACC),
-            "ACG" => Ok(Self::ACG),
-            "ACT" => Ok(Self::ACT),
-            "AGA" => Ok(Self::AGA),
-            "AGC" => Ok(Self::AGC),
-            "AGG" => Ok(Self::AGG),
-            "AGT" => Ok(Self::AGT),
-            "ATA" => Ok(Self::ATA),
-            "ATC" => Ok(Self::ATC),
-            "ATG" => Ok(Self::ATG),
-            "ATT" => Ok(Self::ATT),
-            "CAA" => Ok(Self::CAA),
-            "CAC" => Ok(Self::CAC),
-            "CAG" => Ok(Self::CAG),
-            "CAT" => Ok(Self::CAT),
-            "CCA" => Ok(Self::CCA),
-            "CCC" => Ok(Self::CCC),
-            "CCG" => Ok(Self::CCG),
-            "CCT" => Ok(Self::CCT),
-            "CGA" => Ok(Self::CGA),
-            "CGC" => Ok(Self::CGC),
-            "CGG" => Ok(Self::CGG),
-            "CGT" => Ok(Self::CGT),
-            "CTA" => Ok(Self::CTA),
-            "CTC" => Ok(Self::CTC),
-            "CTG" => Ok(Self::CTG),
-            "CTT" => Ok(Self::CTT),
-            "GAA" => Ok(Self::GAA),
-            "GAC" => Ok(Self::GAC),
-            "GAG" => Ok(Self::GAG),
-            "GAT" => Ok(Self::GAT),
-            "GCA" => Ok(Self::GCA),
-            "GCC" => Ok(Self::GCC),
-            "GCG" => Ok(Self::GCG),
-            "GCT" => Ok(Self::GCT),
-            "GGA" => Ok(Self::GGA),
-            "GGC" => Ok(Self::GGC),
-            "GGG" => Ok(Self::GGG),
-            "GGT" => Ok(Self::GGT),
-            "GTA" => Ok(Self::GTA),
-            "GTC" => Ok(Self::GTC),
-            "GTG" => Ok(Self::GTG),
-            "GTT" => Ok(Self::GTT),
-            "TAA" => Ok(Self::TAA),
-            "TAC" => Ok(Self::TAC),
-            "TAG" => Ok(Self::TAG),
-            "TAT" => Ok(Self::TAT),
-            "TCA" => Ok(Self::TCA),
-            "TCC" => Ok(Self::TCC),
-            "TCG" => Ok(Self::TCG),
-            "TCT" => Ok(Self::TCT),
-            "TGA" => Ok(Self::TGA),
-            "TGC" => Ok(Self::TGC),
-            "TGG" => Ok(Self::TGG),
-            "TGT" => Ok(Self::TGT),
-            "TTA" => Ok(Self::TTA),
-            "TTC" => Ok(Self::TTC),
-            "TTG" => Ok(Self::TTG),
-            "TTT" => Ok(Self::TTT),
-            _ => Err(()),  // TODO: Make an error type
+            "AAA" => SequenceItem::Some(Self::AAA),
+            "AAC" => SequenceItem::Some(Self::AAC),
+            "AAG" => SequenceItem::Some(Self::AAG),
+            "AAT" => SequenceItem::Some(Self::AAT),
+            "ACA" => SequenceItem::Some(Self::ACA),
+            "ACC" => SequenceItem::Some(Self::ACC),
+            "ACG" => SequenceItem::Some(Self::ACG),
+            "ACT" => SequenceItem::Some(Self::ACT),
+            "AGA" => SequenceItem::Some(Self::AGA),
+            "AGC" => SequenceItem::Some(Self::AGC),
+            "AGG" => SequenceItem::Some(Self::AGG),
+            "AGT" => SequenceItem::Some(Self::AGT),
+            "ATA" => SequenceItem::Some(Self::ATA),
+            "ATC" => SequenceItem::Some(Self::ATC),
+            "ATG" => SequenceItem::Some(Self::ATG),
+            "ATT" => SequenceItem::Some(Self::ATT),
+            "CAA" => SequenceItem::Some(Self::CAA),
+            "CAC" => SequenceItem::Some(Self::CAC),
+            "CAG" => SequenceItem::Some(Self::CAG),
+            "CAT" => SequenceItem::Some(Self::CAT),
+            "CCA" => SequenceItem::Some(Self::CCA),
+            "CCC" => SequenceItem::Some(Self::CCC),
+            "CCG" => SequenceItem::Some(Self::CCG),
+            "CCT" => SequenceItem::Some(Self::CCT),
+            "CGA" => SequenceItem::Some(Self::CGA),
+            "CGC" => SequenceItem::Some(Self::CGC),
+            "CGG" => SequenceItem::Some(Self::CGG),
+            "CGT" => SequenceItem::Some(Self::CGT),
+            "CTA" => SequenceItem::Some(Self::CTA),
+            "CTC" => SequenceItem::Some(Self::CTC),
+            "CTG" => SequenceItem::Some(Self::CTG),
+            "CTT" => SequenceItem::Some(Self::CTT),
+            "GAA" => SequenceItem::Some(Self::GAA),
+            "GAC" => SequenceItem::Some(Self::GAC),
+            "GAG" => SequenceItem::Some(Self::GAG),
+            "GAT" => SequenceItem::Some(Self::GAT),
+            "GCA" => SequenceItem::Some(Self::GCA),
+            "GCC" => SequenceItem::Some(Self::GCC),
+            "GCG" => SequenceItem::Some(Self::GCG),
+            "GCT" => SequenceItem::Some(Self::GCT),
+            "GGA" => SequenceItem::Some(Self::GGA),
+            "GGC" => SequenceItem::Some(Self::GGC),
+            "GGG" => SequenceItem::Some(Self::GGG),
+            "GGT" => SequenceItem::Some(Self::GGT),
+            "GTA" => SequenceItem::Some(Self::GTA),
+            "GTC" => SequenceItem::Some(Self::GTC),
+            "GTG" => SequenceItem::Some(Self::GTG),
+            "GTT" => SequenceItem::Some(Self::GTT),
+            "TAA" => SequenceItem::Some(Self::TAA),
+            "TAC" => SequenceItem::Some(Self::TAC),
+            "TAG" => SequenceItem::Some(Self::TAG),
+            "TAT" => SequenceItem::Some(Self::TAT),
+            "TCA" => SequenceItem::Some(Self::TCA),
+            "TCC" => SequenceItem::Some(Self::TCC),
+            "TCG" => SequenceItem::Some(Self::TCG),
+            "TCT" => SequenceItem::Some(Self::TCT),
+            "TGA" => SequenceItem::Some(Self::TGA),
+            "TGC" => SequenceItem::Some(Self::TGC),
+            "TGG" => SequenceItem::Some(Self::TGG),
+            "TGT" => SequenceItem::Some(Self::TGT),
+            "TTA" => SequenceItem::Some(Self::TTA),
+            "TTC" => SequenceItem::Some(Self::TTC),
+            "TTG" => SequenceItem::Some(Self::TTG),
+            "TTT" => SequenceItem::Some(Self::TTT),
+            "NNN" => SequenceItem::Unknown,
+            "---" => SequenceItem::Gap,
+            _ => SequenceItem::Err(()),  // TODO: Make an error type
         }
     }
     
@@ -677,7 +773,7 @@ impl Codon {
             .count()
     }
 
-    pub fn generate_mutation_pathways_(&self, other: &Self) -> Vec<Vec<Codon>> {
+    pub fn list_mutation_pathways_(&self, other: &Self) -> Vec<Vec<Codon>> {
         if self.is_stop_codon_() { return vec![] }
         else if other.is_stop_codon_() { return vec![] }
 
@@ -722,6 +818,78 @@ impl Codon {
             .collect()
     }
 }
+
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PwAlnItem<T, E>(pub SequenceItem<T, E>, pub SequenceItem<T, E>, pub usize);
+
+impl<T,E> PwAlnItem<T,E> {
+    pub fn both_valid(&self) -> bool {
+        if let Self(SequenceItem::Some(_), SequenceItem::Some(_), _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn any_valid(&self) -> bool {
+        match self {
+            Self(SequenceItem::Some(_), _, _) => true,
+            Self(_, SequenceItem::Some(_), _) => true,
+            _ => false
+        }
+    }
+
+    pub fn both_gap(&self) -> bool {
+        if let Self(SequenceItem::Gap, SequenceItem::Gap, _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn any_gap(&self) -> bool {
+        match self {
+            Self(SequenceItem::Gap, _, _) => true,
+            Self(_, SequenceItem::Gap, _) => true,
+            _ => false
+        }
+    }
+
+    pub fn both_unknown(&self) -> bool {
+        if let Self(SequenceItem::Unknown, SequenceItem::Unknown, _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn any_unknown(&self) -> bool {
+        match self {
+            Self(SequenceItem::Unknown, _, _) => true,
+            Self(_, SequenceItem::Unknown, _) => true,
+            _ => false
+        }
+    }
+
+    pub fn both_error(&self) -> bool {
+        if let Self(SequenceItem::Err(_), SequenceItem::Err(_), _) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn any_error(&self) -> bool {
+        match self {
+            Self(SequenceItem::Err(_), _, _) => true,
+            Self(_, SequenceItem::Err(_), _) => true,
+            _ => false
+        }
+    }
+
+}
+
 
 
 #[cfg(test)]
@@ -812,14 +980,15 @@ mod amino_acid_tests {
             (AminoAcid::Trp, "Trp"),
             (AminoAcid::Tyr, "Tyr"),
             (AminoAcid::Val, "Val"),
+            (AminoAcid::Stop, "Ter"),
         ];
         for (aa, aa_str) in test_vec {
-            let result = AminoAcid::from_three_str_(aa_str).unwrap();
+            let result = AminoAcid::from_three_str_(aa_str).unwrap().unwrap();
             assert_eq!(result, aa)
         }
         
         // When error
-        let result = AminoAcid::from_three_str_("ASD");
+        let result = AminoAcid::from_three_str_("ASD").unwrap();
         assert_eq!(result.is_err(), true)
     }
 
@@ -846,14 +1015,15 @@ mod amino_acid_tests {
             (AminoAcid::Trp, 'W'),
             (AminoAcid::Tyr, 'Y'),
             (AminoAcid::Val, 'V'),
+            (AminoAcid::Stop, '*'),
         ];
         for (aa, aa_char) in test_vec {
-            let result = AminoAcid::from_one_char_(&aa_char).unwrap();
+            let result = AminoAcid::from_one_char_(&aa_char).unwrap().unwrap();
             assert_eq!(result, aa)
         }
         
         // When error
-        let result = AminoAcid::from_one_char_(&'X');
+        let result = AminoAcid::from_one_char_(&'@').unwrap();
         assert_eq!(result.is_err(), true)
     }
 
@@ -1033,12 +1203,12 @@ mod codon_tests {
             (Codon::TTT, "TTT"),
         ];
         for (codon, codon_str) in test_vec {
-            let result = Codon::from_str_(codon_str).unwrap();
+            let result = Codon::from_str_(codon_str).unwrap().unwrap();
             assert_eq!(result, codon)
         }
         
         // When error
-        let result = Codon::from_str_("XXX");
+        let result = Codon::from_str_("QWE").unwrap();
         assert_eq!(result.is_err(), true)
     }
 
@@ -1073,7 +1243,7 @@ mod codon_tests {
     fn codon_generate_mutation_pathways_same() {
         let codon1 = Codon::ATG;
         let codon2 = Codon::ATG;
-        let pathways = codon1.generate_mutation_pathways_(&codon2);
+        let pathways = codon1.list_mutation_pathways_(&codon2);
         let expected: Vec<Vec<Codon>> = vec![];
         assert_eq!(pathways, expected);
     }
@@ -1086,7 +1256,7 @@ mod codon_tests {
             (Codon::TTT, Codon::TTG),
         ];
         for (codon1, codon2) in test_list {
-            let pathways = codon1.generate_mutation_pathways_(&codon2);
+            let pathways = codon1.list_mutation_pathways_(&codon2);
             let expected: Vec<Vec<Codon>> = vec![vec![codon1, codon2]];
             assert_eq!(pathways, expected);
         }
@@ -1114,7 +1284,7 @@ mod codon_tests {
             ],
         ];
         for (i, (codon1, codon2)) in test_list.into_iter().enumerate() {
-            let pathways = codon1.generate_mutation_pathways_(&codon2);
+            let pathways = codon1.list_mutation_pathways_(&codon2);
             let expected: Vec<Vec<Codon>> = result_list[i].clone();
             assert_eq!(pathways, expected);
         }
@@ -1131,7 +1301,7 @@ mod codon_tests {
             vec![Codon::TTT, Codon::TGT, Codon::GGT, Codon::GGG],
         ];
         let (codon1, codon2) = (Codon::TTT, Codon::GGG);
-        let pathways = codon1.generate_mutation_pathways_(&codon2);
+        let pathways = codon1.list_mutation_pathways_(&codon2);
         let expected: Vec<Vec<Codon>> = result;
         assert_eq!(pathways, expected);
         
@@ -1141,7 +1311,7 @@ mod codon_tests {
     fn codon_generate_mutation_pathways_stop_codon_final_result() {
         let (codon1, codon2) = (Codon::ATG, Codon::TAG);
         let expected: Vec<Vec<Codon>> = vec![];
-        let pathways = codon1.generate_mutation_pathways_(&codon2);
+        let pathways = codon1.list_mutation_pathways_(&codon2);
         assert_eq!(pathways, expected);
     }
 
@@ -1152,7 +1322,7 @@ mod codon_tests {
             // vec![Codon::AAG, Codon::TAG, Codon::TTG],  // stop codon intermediate
             vec![Codon::AAG, Codon::ATG, Codon::TTG],
         ];
-        let pathways = codon1.generate_mutation_pathways_(&codon2);
+        let pathways = codon1.list_mutation_pathways_(&codon2);
         assert_eq!(pathways, expected);
     }
 
@@ -1160,7 +1330,7 @@ mod codon_tests {
     fn codon_generate_mutation_pathways_stop_codon_original() {
         let (codon1, codon2) = (Codon::TAA, Codon::TTT);
         let expected: Vec<Vec<Codon>> = vec![];
-        let pathways = codon1.generate_mutation_pathways_(&codon2);
+        let pathways = codon1.list_mutation_pathways_(&codon2);
         assert_eq!(pathways, expected);
     }
 
