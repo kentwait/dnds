@@ -1,4 +1,9 @@
-use crate::dtype::{Codon, PwAlnItem, WrappedSequenceItem};
+use crate::dtype::{
+    Codon, 
+    SequenceItem,
+    WrappedSequenceItem,
+    PwAlnItem,
+};
 use crate::parser::keep_valid_sites;
 
 
@@ -6,6 +11,7 @@ fn count_sites_single_codon(codon: &Codon) -> (f64, f64) {
     let mut syn_site_count: f64 = 0.;
     let mut nonsyn_site_count: f64 = 0.;
     codon.one_hit_mutants_().iter()
+        .filter(|c| !c.is_stop_codon_() )
         .for_each(|other| {
             if codon.is_synonymous_change_(other) {
                 syn_site_count += 1.;
@@ -59,7 +65,7 @@ pub fn count_total_sites<E>(vec: Vec<PwAlnItem<Codon, E>>) -> Result<(f64, f64),
     // Remove gaps, unknowns, errors
     let mut total_s = 0.;
     let mut total_n = 0.;
-    for pair in keep_valid_sites(vec).iter() {
+    for pair in keep_valid_sites(vec).into_iter() {
         let codon1 = pair.0.unwrap()?;
         let codon2 = pair.1.unwrap()?;
         let (s, n) = count_sites(&codon1, &codon2)?;
@@ -73,9 +79,9 @@ pub fn count_total_differences<E>(vec: Vec<PwAlnItem<Codon, E>>) -> Result<(f64,
     // Remove gaps, unknowns, errors
     let mut total_sd = 0.;
     let mut total_nd = 0.;
-    for pair in keep_valid_sites(vec).iter() {
-        let codon1 = pair.0.unwrap().unwrap();
-        let codon2 = pair.1.unwrap().unwrap();
+    for pair in keep_valid_sites(vec).into_iter() {
+        let codon1 = pair.0.unwrap()?;
+        let codon2 = pair.1.unwrap()?;
         let (sd, nd) = count_differences(&codon1, &codon2)?;
         total_sd += sd;
         total_nd += nd;
@@ -124,8 +130,8 @@ mod count_sites_tests {
     #[test]
     fn count_sites_single_codon_leu() {
         let (s, n) = count_sites_single_codon(&Codon::TTG);  // Leu
-        assert_approx_eq!(s, 0.6666667);
-        assert_approx_eq!(n, 2.3333334);
+        assert_approx_eq!(s, 0.75);
+        assert_approx_eq!(n, 2.25);
         assert_approx_eq!(s+n, 3.0);
     }
 
@@ -140,13 +146,16 @@ mod count_sites_tests {
 
     #[test]
     fn count_sites_phe_leu() {
-        if let Ok((s, n)) = count_sites(&Codon::TTT, &Codon::TTG) {  // Phe, Leu
-            assert_approx_eq!(s, 0.5);
-            assert_approx_eq!(n, 2.5);
-            assert_approx_eq!(s+n, 3.0);
-        }
+        let codon1 = Codon::TTT;
+        let codon2 = Codon::TTG;
+        let (s, n) = count_sites(&codon1, &codon2).unwrap();  // Phe, Leu
+        assert_approx_eq!(s, 0.541666);
+        assert_approx_eq!(n, 2.458333);
+        assert_approx_eq!(s+n, 3.0);
     }
+
 }
+
 
 #[cfg(test)]
 mod count_differences_tests {
@@ -191,5 +200,115 @@ mod count_differences_tests {
             assert_approx_eq!(n, 2.5);
             assert_approx_eq!(s+n, 3.);
         }
+    }
+
+}
+
+
+#[cfg(test)]
+mod count_total_sites_tests {
+    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
+    #[test]
+    fn count_total_sites_same() {
+        let vec: Vec<PwAlnItem<Codon, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::ATG), 
+                1
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::ATA), 
+            //     SequenceItem::Gap, 
+            //     2
+            // ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::TTT), 
+                3
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Unknown, 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     4
+            // ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::TGA), 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     5
+            // ),
+        ];
+        let (s, n) = count_total_sites(vec).unwrap();
+        assert_approx_eq!(s, 0.333333);
+        assert_approx_eq!(n, 5.666666);
+    }
+
+    #[test]
+    fn count_total_sites_different() {
+        let vec: Vec<PwAlnItem<Codon, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::GAC), 
+                1
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::ATA), 
+            //     SequenceItem::Gap, 
+            //     2
+            // ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::AAA),  // has stop codon mutant TAA
+                3
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Unknown, 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     4
+            // ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::TGA), 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     5
+            // ),
+        ];
+        let (s, n) = count_total_sites(vec).unwrap();
+        assert_approx_eq!(s, 0.520833);
+        assert_approx_eq!(n, 5.479166);
+    }
+
+    #[test]
+    fn count_total_sites_invalids() {
+        let vec: Vec<PwAlnItem<Codon, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::GAC), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATA), 
+                SequenceItem::Gap, 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::AAA),  // has stop codon mutant TAA
+                3
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Unknown, 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     4
+            // ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::TGA), 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     5
+            // ),
+        ];
+        let (s, n) = count_total_sites(vec).unwrap();
+        assert_approx_eq!(s, 0.520833);
+        assert_approx_eq!(n, 5.479166);
     }
 }
