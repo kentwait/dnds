@@ -62,7 +62,7 @@ pub fn keep_valid_sites<T, E>(pw_vec: Vec<PwAlnItem<T, E>>) -> Vec<PwAlnItem<T, 
 }
 
 #[cfg(test)]
-mod str_to_codon_vec_tests {
+mod aln_str_to_codon_vec_tests {
     use super::*;
 
     #[test]
@@ -97,4 +97,226 @@ mod str_to_codon_vec_tests {
             assert_eq!(codons, vec![]);
         }
     }
+
+}
+
+
+#[cfg(test)]
+mod pairwise_aln_str_to_paired_tests {
+    use super::*;
+
+    #[test]
+    fn pairwise_aln_str_to_paired_bases_ok() {
+        let s1 = "ATG-A";
+        let s2 = "AT-NA";
+        let result = pairwise_aln_str_to_paired_bases(s1, s2).unwrap();
+        let expected = vec![
+            PwAlnItem(
+                SequenceItem::Some(Base::A), 
+                SequenceItem::Some(Base::A), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Base::T), 
+                SequenceItem::Some(Base::T), 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Base::G), 
+                SequenceItem::Gap, 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Gap, 
+                SequenceItem::Unknown, 
+                4
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Base::A), 
+                SequenceItem::Some(Base::A), 
+                5
+            ),
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn pairwise_aln_str_to_paired_amino_acids_ok() {
+        let s1 = "M-GY*";
+        let s2 = "MGGY*";
+        let result = pairwise_aln_str_to_paired_amino_acids(s1, s2).unwrap();
+        let expected = vec![
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Met), 
+                SequenceItem::Some(AminoAcid::Met), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Gap, 
+                SequenceItem::Some(AminoAcid::Gly), 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Gly), 
+                SequenceItem::Some(AminoAcid::Gly), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Tyr), 
+                SequenceItem::Some(AminoAcid::Tyr), 
+                4
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Stop), 
+                SequenceItem::Some(AminoAcid::Stop), 
+                5
+            ),
+        ];
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn pairwise_aln_str_to_paired_codons_ok() {
+        let s1 = "ATGATATTTTGA";
+        let s2 = "ATG---TCTTGA";
+        let result = pairwise_aln_str_to_paired_codons(s1, s2).unwrap();
+        let expected = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::ATG), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATA), 
+                SequenceItem::Gap, 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::TCT), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TGA), 
+                SequenceItem::Some(Codon::TGA), 
+                4
+            ),
+        ];
+        assert_eq!(result, expected);
+    }
+
+}
+
+
+#[cfg(test)]
+mod keep_valid_sites_tests {
+    use super::*;
+
+    #[test]
+    fn keep_valid_sites_amino_acid_ok() {
+        let vec: Vec<PwAlnItem<AminoAcid, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Met), 
+                SequenceItem::Some(AminoAcid::Met), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Gap, 
+                SequenceItem::Some(AminoAcid::Gly), 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Gly), 
+                SequenceItem::Some(AminoAcid::Gly), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Tyr), 
+                SequenceItem::Some(AminoAcid::Tyr), 
+                4
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Stop), 
+                SequenceItem::Some(AminoAcid::Stop), 
+                5
+            ),
+        ];
+        let result = keep_valid_sites(vec);
+        let expected: Vec<PwAlnItem<AminoAcid, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Met), 
+                SequenceItem::Some(AminoAcid::Met), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Gly), 
+                SequenceItem::Some(AminoAcid::Gly), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Tyr), 
+                SequenceItem::Some(AminoAcid::Tyr), 
+                4
+            ),
+            PwAlnItem(
+                SequenceItem::Some(AminoAcid::Stop), 
+                SequenceItem::Some(AminoAcid::Stop), 
+                5
+            ),
+        ];
+        // is stop amino acid "valid"??
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn keep_valid_sites_codon_ok() {
+        let vec: Vec<PwAlnItem<Codon, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::ATG), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATA), 
+                SequenceItem::Gap, 
+                2
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::TCT), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Unknown, 
+                SequenceItem::Some(Codon::TGA), 
+                4
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TGA), 
+                SequenceItem::Some(Codon::TGA), 
+                5
+            ),
+        ];
+        let result = keep_valid_sites(vec);
+        let expected = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::ATG), 
+                1
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::TCT), 
+                3
+            ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TGA), 
+                SequenceItem::Some(Codon::TGA), 
+                5
+            ),
+        ];
+        // is stop amino acid "valid"??
+        assert_eq!(result, expected);
+    }
+
 }
