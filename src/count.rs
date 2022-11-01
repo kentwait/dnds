@@ -165,41 +165,37 @@ mod count_differences_tests {
     #[test]
     fn count_differences_same() {
         let (codon1, codon2) = (Codon::AAA, Codon::AAA);
-        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
-            assert_approx_eq!(s, 0.);
-            assert_approx_eq!(n, 0.);
-            assert_approx_eq!(s+n, 0.);
-        }
+        let (s, n) = count_differences(&codon1, &codon2).unwrap();
+        assert_approx_eq!(s, 0.);
+        assert_approx_eq!(n, 0.);
+        assert_approx_eq!(s+n, 0.);
     }
 
     #[test]
     fn count_differences_one_path() {
         let (codon1, codon2) = (Codon::CCT, Codon::CAT);
-        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
-            assert_approx_eq!(s, 0.);
-            assert_approx_eq!(n, 1.);
-            assert_approx_eq!(s+n, 1.);
-        }
+        let (s, n) = count_differences(&codon1, &codon2).unwrap();
+        assert_approx_eq!(s, 0.);
+        assert_approx_eq!(n, 1.);
+        assert_approx_eq!(s+n, 1.);
     }
 
     #[test]
     fn count_differences_two_paths() {
         let (codon1, codon2) = (Codon::CCT, Codon::CAG);
-        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
-            assert_approx_eq!(s, 0.5);
-            assert_approx_eq!(n, 1.5);
-            assert_approx_eq!(s+n, 2.);
-        }
+        let (s, n) = count_differences(&codon1, &codon2).unwrap();
+        assert_approx_eq!(s, 0.5);
+        assert_approx_eq!(n, 1.5);
+        assert_approx_eq!(s+n, 2.);
     }
 
     #[test]
     fn count_differences_six_paths() {
         let (codon1, codon2) = (Codon::TTT, Codon::GGG);
-        if let Ok((s, n)) = count_differences(&codon1, &codon2) {
-            assert_approx_eq!(s, 0.5);
-            assert_approx_eq!(n, 2.5);
-            assert_approx_eq!(s+n, 3.);
-        }
+        let (s, n) = count_differences(&codon1, &codon2).unwrap();
+        assert_approx_eq!(s, 0.5);
+        assert_approx_eq!(n, 2.5);
+        assert_approx_eq!(s+n, 3.);
     }
 
 }
@@ -311,4 +307,47 @@ mod count_total_sites_tests {
         assert_approx_eq!(s, 0.520833);
         assert_approx_eq!(n, 5.479166);
     }
+}
+
+
+#[cfg(test)]
+mod count_total_differences_tests {
+    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
+    #[test]
+    fn count_total_differences_same() {
+        let vec: Vec<PwAlnItem<Codon, ()>> = vec![
+            PwAlnItem(
+                SequenceItem::Some(Codon::ATG), 
+                SequenceItem::Some(Codon::ATG), 
+                1
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::ATA), 
+            //     SequenceItem::Gap, 
+            //     2
+            // ),
+            PwAlnItem(
+                SequenceItem::Some(Codon::TTT), 
+                SequenceItem::Some(Codon::TTT), 
+                3
+            ),
+            // PwAlnItem(
+            //     SequenceItem::Unknown, 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     4
+            // ),
+            // PwAlnItem(
+            //     SequenceItem::Some(Codon::TGA), 
+            //     SequenceItem::Some(Codon::TGA), 
+            //     5
+            // ),
+        ];
+        let (s, n) = count_total_differences(vec).unwrap();
+        assert_approx_eq!(s, 0.);
+        assert_approx_eq!(n, 0.);
+        assert_approx_eq!(s+n, 0.);
+    }
+    
 }
